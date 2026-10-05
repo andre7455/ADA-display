@@ -1,0 +1,1 @@
+This unsupported file is intentionally present for automated discovery tests.

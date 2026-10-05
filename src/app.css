@@ -1,0 +1,35 @@
+@import 'tailwindcss';
+
+@source '../index.html';
+@source './**/*.{js,svelte}';
+@source '../content/**/*.{html,htm}';
+
+@layer base {
+  html,
+  body,
+  #app {
+    min-width: 320px;
+    min-height: 100vh;
+    cursor: none;
+    background: #000;
+  }
+
+  * {
+    cursor: none;
+  }
+
+  body {
+    margin: 0;
+    overflow: hidden;
+  }
+}
+
+@keyframes progress {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
