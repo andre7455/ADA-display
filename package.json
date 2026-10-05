@@ -1,0 +1,59 @@
+{
+  "name": "ada-display",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --config tooling/vite.config.js",
+    "build": "vite build --config tooling/vite.config.js",
+    "preview": "vite preview --config tooling/vite.config.js",
+    "format": "prettier --write . --ignore-path tooling/.prettierignore",
+    "lint": "prettier --check . --ignore-path tooling/.prettierignore && eslint --config tooling/.eslintrc.cjs src tooling/tests tooling/*.js",
+    "check": "svelte-check --tsconfig ./tooling/jsconfig.json",
+    "test": "vitest run --config tooling/vitest.config.js",
+    "test:unit": "vitest run --config tooling/vitest.config.js tooling/tests/unit",
+    "test:integration": "vitest run --config tooling/vitest.config.js tooling/tests/integration",
+    "test:e2e": "vitest run --config tooling/vitest.config.js tooling/tests/e2e"
+  },
+  "prettier": {
+    "singleQuote": true,
+    "trailingComma": "all",
+    "printWidth": 100,
+    "tabWidth": 2,
+    "useTabs": false,
+    "plugins": [
+      "prettier-plugin-svelte"
+    ],
+    "overrides": [
+      {
+        "files": "*.svelte",
+        "options": {
+          "parser": "svelte"
+        }
+      }
+    ]
+  },
+  "dependencies": {
+    "svelte": "^5.0.0"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5.0.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/svelte": "^5.4.2",
+    "eslint": "^8.57.1",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-svelte": "^2.46.1",
+    "jsdom": "^30.1.2",
+    "prettier": "^3.4.2",
+    "prettier-plugin-svelte": "^3.3.3",
+    "svelte-check": "^4.1.0",
+    "svelte-eslint-parser": "^0.43.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.0",
+    "vitest": "^5.0.3"
+  }
+}
