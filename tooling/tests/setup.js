@@ -8,3 +8,5 @@ Element.prototype.animate ??= () => ({
   pause: () => {},
   play: () => {},
 });
+
+Element.prototype.requestFullscreen ??= () => Promise.resolve();

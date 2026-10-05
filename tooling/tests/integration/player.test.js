@@ -23,6 +23,7 @@ const htmlItem = {
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   vi.useRealTimers();
 });
 
@@ -62,6 +63,18 @@ describe('SignagePlayer integration', () => {
 
     expect(screen.getByLabelText('Slide 1 of 2')).toBeInTheDocument();
     expect(document.querySelectorAll('[aria-current="true"]')).toHaveLength(1);
+  });
+
+  it('requests fullscreen from the fullscreen button', async () => {
+    const requestFullscreen = vi
+      .spyOn(document.documentElement, 'requestFullscreen')
+      .mockResolvedValue(undefined);
+
+    render(SignagePlayer, { items: [imageItem] });
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Fullscreen' }));
+
+    expect(requestFullscreen).toHaveBeenCalledTimes(1);
   });
 
   it('handles empty content collections gracefully', () => {

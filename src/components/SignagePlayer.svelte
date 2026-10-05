@@ -14,6 +14,8 @@
   /** @type {ReturnType<typeof setTimeout> | undefined} */
   let timer;
 
+  let scheduledItemId = '';
+
   /** @type {Set<string>} */
   let failedIds = new Set();
 
@@ -23,6 +25,7 @@
   /** @type {import('../lib/contentDiscovery.js').ContentItem | null} */
   let currentItem = null;
 
+  let isFullscreen = false;
   let stopWakeLock = () => {};
 
   function next() {
@@ -33,11 +36,19 @@
    * @param {import('../lib/contentDiscovery.js').ContentItem | null} item
    */
   function schedule(item) {
-    clearTimeout(timer);
-
-    if (item) {
-      timer = setTimeout(next, item.durationMs);
+    if (!item) {
+      scheduledItemId = '';
+      clearTimeout(timer);
+      return;
     }
+
+    if (item.id === scheduledItemId) {
+      return;
+    }
+
+    scheduledItemId = item.id;
+    clearTimeout(timer);
+    timer = setTimeout(next, item.durationMs);
   }
 
   /**
@@ -45,7 +56,29 @@
    */
   function fail(item) {
     failedIds = new Set([...failedIds, item.id]);
+    scheduledItemId = '';
     next();
+  }
+
+  function restartWakeLock() {
+    stopWakeLock();
+    stopWakeLock = keepScreenAwake();
+  }
+
+  async function enterFullscreen() {
+    restartWakeLock();
+
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+      try {
+        await document.documentElement.requestFullscreen();
+      } catch {
+        // Fullscreen can be denied by browser policy; wake lock still keeps trying when supported.
+      }
+    }
+  }
+
+  function updateFullscreenState() {
+    isFullscreen = Boolean(document.fullscreenElement);
   }
 
   $: playableItems = items.filter((item) => !failedIds.has(item.id));
@@ -54,11 +87,14 @@
   $: schedule(currentItem);
 
   onMount(() => {
-    stopWakeLock = keepScreenAwake();
+    restartWakeLock();
+    updateFullscreenState();
+    document.addEventListener('fullscreenchange', updateFullscreenState);
   });
 
   onDestroy(() => {
     clearTimeout(timer);
+    document.removeEventListener('fullscreenchange', updateFullscreenState);
     stopWakeLock();
   });
 </script>
@@ -94,7 +130,7 @@
       {/key}
 
       <div
-        class="absolute inset-x-0 bottom-4 flex justify-center gap-2 px-4"
+        class="absolute inset-x-0 bottom-4 z-10 flex justify-center gap-2 px-4"
         aria-label={`Slide ${currentIndex + 1} of ${playableItems.length}`}
       >
         {#each playableItems as item, index (item.id)}
@@ -107,7 +143,7 @@
         {/each}
       </div>
 
-      <div class="absolute inset-x-0 bottom-0 h-1 bg-white/10" aria-hidden="true">
+      <div class="absolute inset-x-0 bottom-0 z-10 h-1 bg-white/10" aria-hidden="true">
         {#key currentItem.id}
           <div
             class="h-full origin-left bg-white/80"
@@ -115,6 +151,16 @@
           ></div>
         {/key}
       </div>
+
+      {#if !isFullscreen}
+        <button
+          class="absolute right-4 top-4 z-20 cursor-auto rounded-full bg-white/90 px-5 py-3 text-sm font-bold uppercase tracking-wide text-black shadow-2xl ring-1 ring-black/10 transition hover:bg-white focus:outline-none focus:ring-4 focus:ring-sky-400"
+          type="button"
+          on:click={enterFullscreen}
+        >
+          Fullscreen
+        </button>
+      {/if}
 
       {#if debug}
         <aside
