@@ -27,7 +27,9 @@ https://sv-ada.nl/events/the-showdown
 
 During `npm run build`, URL files are automatically screenshotted into `content/generated/`, and the carousel displays those screenshots. The filename duration prefix still applies, so `10-showdown.url` is displayed for 10 seconds.
 
-Playwright needs Chromium on the build machine. The build script installs it locally when missing.
+The build uses a system-installed Chromium when available. On Raspberry Pi OS, install it once with `sudo apt update && sudo apt install chromium` (older releases may call the package `chromium-browser`). If Chromium is elsewhere, set `CHROMIUM_PATH` to its executable. On other systems, the build downloads Playwright Chromium when neither browser is installed. The build machine also needs network access to each URL.
+
+Install the project dependencies, including development dependencies, before building: `npm ci --include=dev`. Serving the already-built `dist/` directory with nginx does not require Node or Chromium.
 
 ## Development scripts
 

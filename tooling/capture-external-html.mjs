@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { mkdir, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
+import { findSystemChromium } from './system-chromium.mjs';
 
 process.env.PLAYWRIGHT_BROWSERS_PATH ||= path.resolve('tooling/.playwright-browsers');
 
@@ -67,6 +68,20 @@ async function installChromium() {
 
 async function launchBrowser() {
   const { chromium } = await import('playwright');
+  const systemChromium = await findSystemChromium();
+
+  if (systemChromium) {
+    console.log(`Capturing pages with system Chromium: ${systemChromium}`);
+    return chromium.launch({ executablePath: systemChromium });
+  }
+
+  if (process.platform === 'linux' && ['arm', 'arm64'].includes(process.arch)) {
+    throw new Error(
+      'URL screenshots on Raspberry Pi require system Chromium. Install it with ' +
+        '`sudo apt update && sudo apt install chromium` (or `chromium-browser` on older Raspberry Pi OS), ' +
+        'or set CHROMIUM_PATH to your Chromium executable.',
+    );
+  }
 
   try {
     return await chromium.launch();

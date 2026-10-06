@@ -24,9 +24,18 @@ module.exports = {
       },
     },
     {
-      files: ['tooling/tests/**/*.js', 'tooling/*.config.js'],
+      files: ['tooling/tests/**/*.js', 'tooling/*.config.js', 'tooling/*.mjs'],
       env: {
         node: true,
+      },
+    },
+    {
+      files: ['tooling/*.mjs'],
+      rules: {
+        'no-restricted-syntax': 'off',
+        'no-await-in-loop': 'off',
+        'no-continue': 'off',
+        'no-console': 'off',
       },
     },
   ],
@@ -56,7 +65,7 @@ module.exports = {
     'import/no-extraneous-dependencies': [
       'error',
       {
-        devDependencies: ['tooling/*.config.js', 'tooling/tests/**/*.js'],
+        devDependencies: ['tooling/*.config.js', 'tooling/*.mjs', 'tooling/tests/**/*.js'],
       },
     ],
   },

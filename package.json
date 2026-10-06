@@ -9,7 +9,7 @@
     "build": "vite build --config tooling/vite.config.js",
     "preview": "vite preview --config tooling/vite.config.js",
     "format": "prettier --write . --ignore-path tooling/.prettierignore",
-    "lint": "prettier --check . --ignore-path tooling/.prettierignore && eslint --config tooling/.eslintrc.cjs src tooling/tests tooling/*.js",
+    "lint": "prettier --check . --ignore-path tooling/.prettierignore && eslint --config tooling/.eslintrc.cjs src tooling/tests tooling/*.js tooling/*.mjs",
     "check": "svelte-check --tsconfig ./tooling/jsconfig.json",
     "capture": "node tooling/capture-page-screenshot.mjs",
     "test": "vitest run --config tooling/vitest.config.js",
