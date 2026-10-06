@@ -15,6 +15,20 @@ Add images or HTML pages to `content/`. Supported files are discovered automatic
 
 To control a single slide's duration, prefix its filename with seconds and a dash. For example, `7-sale.jpg` stays on screen for 7 seconds. Files without this prefix use the default/configured duration.
 
+## URL slides
+
+To show a webpage as a non-interactive slide, add a `.url` file to `content/` containing the page URL.
+
+Example: `content/10-showdown.url`
+
+```txt
+https://sv-ada.nl/events/the-showdown
+```
+
+During `npm run build`, URL files are automatically screenshotted into `content/generated/`, and the carousel displays those screenshots. The filename duration prefix still applies, so `10-showdown.url` is displayed for 10 seconds.
+
+Playwright needs Chromium on the build machine. The build script installs it locally when missing.
+
 ## Development scripts
 
 - `npm run dev` - start the Vite development server
@@ -23,6 +37,7 @@ To control a single slide's duration, prefix its filename with seconds and a das
 - `npm run format` - format project files with Prettier
 - `npm run lint` - check formatting and lint with ESLint
 - `npm run check` - run `svelte-check`
+- `npm run capture -- <url> [output-file]` - manually capture a webpage screenshot into `content/`
 - `npm run test` - run automated tests
 
 ## nginx build

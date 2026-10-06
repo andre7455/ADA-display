@@ -1,10 +1,12 @@
 node_modules
 tooling/node_modules
+tooling/.playwright-browsers
 .npm-cache
 tooling/.npm-cache
 .DS_Store
 dist
 dist-ssr
+content/generated
 *.local
 .env
 .env.*

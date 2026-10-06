@@ -38,6 +38,27 @@ function durationFromPath(path) {
 
 /**
  * @param {string} path
+ * @returns {string}
+ */
+function generatedScreenshotPath(path) {
+  return path.replace('/content/', '/content/generated/').replace(/\.(html?|url)$/i, '.png');
+}
+
+/**
+ * @param {string} path
+ * @param {string | undefined} rawContent
+ * @param {Set<string>} generatedPaths
+ * @returns {boolean}
+ */
+function shouldSkipSource(path, rawContent, generatedPaths) {
+  return Boolean(
+    generatedPaths.has(generatedScreenshotPath(path)) &&
+    (path.endsWith('.url') || rawContent?.match(/<iframe\b[^>]*\bsrc=["']https?:\/\//i)),
+  );
+}
+
+/**
+ * @param {string} path
  * @param {string} url
  * @param {number} [durationMs]
  * @returns {ContentItem | null}
@@ -62,12 +83,17 @@ export function createContentItem(path, url, durationMs = DEFAULT_DURATION_MS) {
 /**
  * @param {Record<string, string>} modules
  * @param {DiscoveryOptions} [options]
+ * @param {Record<string, string>} [sourceModules]
  * @returns {ContentItem[]}
  */
-export function contentModulesToItems(modules, options = {}) {
+export function contentModulesToItems(modules, options = {}, sourceModules = {}) {
   const durationMs = options.durationMs ?? DEFAULT_DURATION_MS;
+  const generatedPaths = new Set(
+    Object.keys(modules).filter((path) => path.includes('/generated/')),
+  );
 
   return Object.entries(modules)
+    .filter(([path]) => !shouldSkipSource(path, sourceModules[path], generatedPaths))
     .map(([path, url]) => createContentItem(path, url, durationMs))
     .filter((item) => item !== null)
     .sort((first, second) => first.path.localeCompare(second.path));
@@ -86,5 +112,13 @@ export function discoverContent(options = {}) {
     })
   );
 
-  return contentModulesToItems(modules, options);
+  const sourceModules = /** @type {Record<string, string>} */ (
+    import.meta.glob('../../content/**/*.{html,htm,url}', {
+      eager: true,
+      import: 'default',
+      query: '?raw',
+    })
+  );
+
+  return contentModulesToItems(modules, options, sourceModules);
 }

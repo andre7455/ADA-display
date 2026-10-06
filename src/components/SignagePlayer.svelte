@@ -119,10 +119,12 @@
             />
           {:else if currentItem.type === 'html'}
             <iframe
-              class="h-full w-full border-0 bg-white"
+              class="h-full w-full border-0 bg-black"
               title={currentItem.title}
               src={currentItem.url}
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+              allow="autoplay; fullscreen; picture-in-picture; screen-wake-lock"
+              allowfullscreen
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation"
               on:error={() => fail(currentItem)}
             ></iframe>
           {/if}

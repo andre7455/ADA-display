@@ -57,6 +57,22 @@ describe('content discovery', () => {
     expect(defaultItem.durationMs).toBe(2500);
   });
 
+  it('uses generated screenshots instead of URL source files', () => {
+    const items = contentModulesToItems(
+      {
+        '../content/5-event.url': '/assets/5-event.url',
+        '../content/generated/5-event.png': '/assets/5-event.png',
+      },
+      {},
+      {
+        '../content/5-event.url': 'https://example.com/event',
+      },
+    );
+
+    expect(items.map((item) => item.path)).toEqual(['../content/generated/5-event.png']);
+    expect(items[0].durationMs).toBe(5000);
+  });
+
   it('handles an empty content collection', () => {
     expect(contentModulesToItems({})).toEqual([]);
   });

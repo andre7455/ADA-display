@@ -1,7 +1,7 @@
 module.exports = {
   root: true,
   ignorePatterns: ['dist/', 'node_modules/', '.npm-cache/'],
-  extends: ['airbnb-base', 'plugin:svelte/recommended', 'prettier'],
+  extends: ['airbnb-base', 'prettier'],
   parserOptions: {
     ecmaVersion: 2022,
     sourceType: 'module',
@@ -20,6 +20,7 @@ module.exports = {
       rules: {
         'import/no-mutable-exports': 'off',
         'import/prefer-default-export': 'off',
+        'no-inner-declarations': 'off',
       },
     },
     {
