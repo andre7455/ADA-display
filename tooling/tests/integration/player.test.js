@@ -23,6 +23,7 @@ const htmlItem = {
 
 afterEach(() => {
   cleanup();
+  Reflect.deleteProperty(navigator, 'wakeLock');
   vi.restoreAllMocks();
   vi.useRealTimers();
 });
@@ -56,6 +57,7 @@ describe('SignagePlayer integration', () => {
     expect(main).toHaveClass('h-screen');
     expect(main).toHaveClass('w-screen');
     expect(main).toHaveClass('overflow-hidden');
+    expect(screen.queryByRole('button', { name: 'Fullscreen' })).not.toBeInTheDocument();
   });
 
   it('shows slide dots and progress information', () => {
@@ -65,16 +67,20 @@ describe('SignagePlayer integration', () => {
     expect(document.querySelectorAll('[aria-current="true"]')).toHaveLength(1);
   });
 
-  it('requests fullscreen from the fullscreen button', async () => {
-    const requestFullscreen = vi
-      .spyOn(document.documentElement, 'requestFullscreen')
-      .mockResolvedValue(undefined);
+  it('keeps the screen awake without requiring fullscreen', async () => {
+    const release = vi.fn().mockResolvedValue(undefined);
+    const request = vi.fn().mockResolvedValue({ released: false, release });
+    Object.defineProperty(navigator, 'wakeLock', {
+      configurable: true,
+      value: { request },
+    });
 
     render(SignagePlayer, { items: [imageItem] });
+    expect(request).toHaveBeenCalledWith('screen');
 
-    await fireEvent.click(screen.getByRole('button', { name: 'Fullscreen' }));
-
-    expect(requestFullscreen).toHaveBeenCalledTimes(1);
+    await Promise.resolve();
+    cleanup();
+    expect(release).toHaveBeenCalledTimes(1);
   });
 
   it('handles empty content collections gracefully', () => {

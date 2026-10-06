@@ -1,6 +1,6 @@
 <script>
   import { onDestroy, onMount } from 'svelte';
-  import { fade } from 'svelte/transition';
+
   import { keepScreenAwake } from '../lib/wakeLock.js';
   import EmptyState from './EmptyState.svelte';
 
@@ -23,9 +23,6 @@
 
   /** @type {import('../lib/contentDiscovery.js').ContentItem | null} */
   let currentItem = null;
-
-  let isFullscreen = false;
-  let stopWakeLock = () => {};
 
   function next() {
     currentIndex = playableItems.length ? (currentIndex + 1) % playableItems.length : 0;
@@ -53,43 +50,13 @@
     next();
   }
 
-  function restartWakeLock() {
-    stopWakeLock();
-    stopWakeLock = keepScreenAwake();
-  }
-
-  async function enterFullscreen() {
-    restartWakeLock();
-
-    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-      try {
-        await document.documentElement.requestFullscreen();
-      } catch {
-        // Fullscreen can be denied by browser policy; wake lock still keeps trying when supported.
-      }
-    }
-  }
-
-  function updateFullscreenState() {
-    isFullscreen = Boolean(document.fullscreenElement);
-  }
-
   $: playableItems = items.filter((item) => !failedIds.has(item.id));
   $: currentIndex = playableItems.length ? Math.min(currentIndex, playableItems.length - 1) : 0;
   $: currentItem = playableItems[currentIndex] ?? null;
   $: schedule(currentItem, cycle);
 
-  onMount(() => {
-    restartWakeLock();
-    updateFullscreenState();
-    document.addEventListener('fullscreenchange', updateFullscreenState);
-  });
-
-  onDestroy(() => {
-    clearTimeout(timer);
-    document.removeEventListener('fullscreenchange', updateFullscreenState);
-    stopWakeLock();
-  });
+  onMount(keepScreenAwake);
+  onDestroy(() => clearTimeout(timer));
 </script>
 
 {#if !currentItem}
@@ -98,7 +65,7 @@
   <main class="h-screen w-screen overflow-hidden bg-black text-white" aria-live="off">
     <section class="relative h-full w-full bg-black">
       {#key currentItem.id}
-        <div class="absolute inset-0 grid place-items-center bg-black" in:fade={{ duration: 180 }}>
+        <div class="absolute inset-0 grid place-items-center bg-black">
           {#if currentItem.type === 'image'}
             <img
               class="block h-screen w-screen object-contain"
@@ -111,8 +78,7 @@
               class="h-full w-full border-0 bg-black"
               title={currentItem.title}
               src={currentItem.url}
-              allow="autoplay; fullscreen; picture-in-picture; screen-wake-lock"
-              allowfullscreen
+              allow="autoplay; picture-in-picture; screen-wake-lock"
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation"
               on:error={() => fail(currentItem)}
             ></iframe>
@@ -142,16 +108,6 @@
           ></div>
         {/key}
       </div>
-
-      {#if !isFullscreen}
-        <button
-          class="absolute right-4 top-4 z-20 cursor-auto rounded-full bg-white/90 px-5 py-3 text-sm font-bold uppercase tracking-wide text-black shadow-2xl ring-1 ring-black/10 transition hover:bg-white focus:outline-none focus:ring-4 focus:ring-sky-400"
-          type="button"
-          on:click={enterFullscreen}
-        >
-          Fullscreen
-        </button>
-      {/if}
 
       {#if debug}
         <aside

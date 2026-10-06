@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, readdir, rm, unlink, utimes, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import jpeg from 'jpeg-js';
@@ -34,6 +34,26 @@ describe('TIFF build conversion', () => {
     expect(item.type).toBe('image');
   });
 
+  it('reuses unchanged conversions and removes them when the source is deleted', async () => {
+    contentDir = await mkdtemp(path.join(os.tmpdir(), 'ada-content-'));
+    const sourcePath = path.join(contentDir, '7-red.tif');
+    const outputPath = path.join(contentDir, 'generated', 'tiff', '7-red.tif.jpg');
+    await writeFile(
+      sourcePath,
+      Buffer.from(UTIF.encodeImage(new Uint8Array([255, 0, 0, 255]), 1, 1)),
+    );
+    await convertTiffs(contentDir);
+    await writeFile(outputPath, 'cached');
+    await utimes(outputPath, new Date('2030-01-01'), new Date('2030-01-01'));
+
+    await convertTiffs(contentDir);
+    expect(await readFile(outputPath, 'utf8')).toBe('cached');
+
+    await unlink(sourcePath);
+    await convertTiffs(contentDir);
+    await expect(readFile(outputPath)).rejects.toThrow();
+  });
+
   it('clears stale conversions while preserving other generated content', async () => {
     contentDir = await mkdtemp(path.join(os.tmpdir(), 'ada-content-'));
     await mkdir(path.join(contentDir, 'generated', 'tiff'), { recursive: true });
@@ -43,7 +63,7 @@ describe('TIFF build conversion', () => {
 
     await convertTiffs(contentDir);
 
-    await expect(readdir(path.join(contentDir, 'generated', 'tiff'))).rejects.toThrow();
+    expect(await readdir(path.join(contentDir, 'generated', 'tiff'))).toEqual([]);
     expect(await readFile(path.join(contentDir, 'generated', 'url.png'), 'utf8')).toBe(
       'screenshot',
     );
