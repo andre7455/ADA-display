@@ -13,13 +13,30 @@ describe('content type detection', () => {
     expect(detectContentType('/content/banner.png?url')).toBe(CONTENT_TYPES.image);
     expect(detectContentType('/content/loop.webp')).toBe(CONTENT_TYPES.image);
     expect(detectContentType('/content/animation.gif')).toBe(CONTENT_TYPES.image);
-    expect(detectContentType('/content/vector.svg')).toBe(CONTENT_TYPES.image);
+    [
+      'apng',
+      'avif',
+      'bmp',
+      'gif',
+      'ico',
+      'jpe',
+      'jpeg',
+      'jfif',
+      'jpg',
+      'png',
+      'svg',
+      'webp',
+    ].forEach((extension) => {
+      expect(detectContentType(`/content/photo.${extension}`)).toBe(CONTENT_TYPES.image);
+    });
     expect(detectContentType('/content/page.html')).toBe(CONTENT_TYPES.html);
     expect(detectContentType('/content/page.htm')).toBe(CONTENT_TYPES.html);
   });
 
   it('ignores unsupported files, including PDFs', () => {
     expect(detectContentType('/content/readme.txt')).toBeNull();
+    expect(detectContentType('/content/photo.tif')).toBeNull();
+    expect(detectContentType('/content/photo.tiff')).toBeNull();
     expect(detectContentType('/content/document.pdf')).toBeNull();
     expect(isSupportedContent('/content/document.pdf')).toBe(false);
   });

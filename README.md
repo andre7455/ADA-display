@@ -11,9 +11,9 @@ Svelte + Vite digital signage player.
 
 ## Content
 
-Add images or HTML pages to `content/`. Supported files are discovered automatically at build/dev time; unsupported files are ignored.
+Add images or HTML pages to `content/`. JPEG (`.jpg`, `.jpeg`, `.jpe`, `.jfif`), PNG, APNG, GIF, WebP, BMP, SVG, ICO, and AVIF are played directly; `.tif`/`.tiff` files are automatically converted to JPEGs under `content/generated/tiff/` by `npm run build` or `npm run dev`. Keep the original TIFFs in `content/`; generated images are replaced on each run. Animated GIFs, APNGs, and WebP files retain their animation. Direct formats depend on the kiosk browser's decoder (notably AVIF on older Firefox); camera formats such as HEIC/HEIF and editable formats such as PSD are not supported.
 
-To control a single slide's duration, prefix its filename with seconds and a dash. For example, `7-sale.jpg` stays on screen for 7 seconds. Files without this prefix use the default/configured duration.
+To control a single slide's duration, prefix its filename with seconds and a dash. For example, `7-sale.tiff` stays on screen for 7 seconds after conversion. Files without this prefix use the default/configured duration.
 
 ## URL slides
 

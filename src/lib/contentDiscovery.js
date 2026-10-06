@@ -105,11 +105,18 @@ export function contentModulesToItems(modules, options = {}, sourceModules = {})
  */
 export function discoverContent(options = {}) {
   const modules = /** @type {Record<string, string>} */ (
-    import.meta.glob('../../content/**/*', {
-      eager: true,
-      import: 'default',
-      query: '?url',
-    })
+    import.meta.glob(
+      [
+        '../../content/**/*',
+        '!../../content/**/*.[tT][iI][fF]',
+        '!../../content/**/*.[tT][iI][fF][fF]',
+      ],
+      {
+        eager: true,
+        import: 'default',
+        query: '?url',
+      },
+    )
   );
 
   const sourceModules = /** @type {Record<string, string>} */ (

@@ -36,6 +36,16 @@ afterEach(() => {
 });
 
 describe('carousel e2e behavior', () => {
+  it('keeps cycling when there is only one slide', async () => {
+    vi.useFakeTimers();
+    render(SignagePlayer, { items: [items[0]] });
+
+    expect(vi.getTimerCount()).toBe(1);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(vi.getTimerCount()).toBe(1);
+    expect(screen.getByAltText('First image')).toBeInTheDocument();
+  });
+
   it('cycles continuously through mixed image and HTML content', async () => {
     vi.useFakeTimers();
 

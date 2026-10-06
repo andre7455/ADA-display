@@ -11,12 +11,12 @@ const IMAGE_EXTENSIONS = new Set([
   'bmp',
   'gif',
   'ico',
+  'jpe',
   'jpeg',
+  'jfif',
   'jpg',
   'png',
   'svg',
-  'tif',
-  'tiff',
   'webp',
 ]);
 

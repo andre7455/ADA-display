@@ -10,11 +10,10 @@
   export let debug = false;
 
   let currentIndex = 0;
+  let cycle = 0;
 
   /** @type {ReturnType<typeof setTimeout> | undefined} */
   let timer;
-
-  let scheduledItemId = '';
 
   /** @type {Set<string>} */
   let failedIds = new Set();
@@ -30,25 +29,20 @@
 
   function next() {
     currentIndex = playableItems.length ? (currentIndex + 1) % playableItems.length : 0;
+    cycle += 1;
   }
 
   /**
    * @param {import('../lib/contentDiscovery.js').ContentItem | null} item
+   * @param {number} scheduledCycle
    */
-  function schedule(item) {
-    if (!item) {
-      scheduledItemId = '';
-      clearTimeout(timer);
-      return;
-    }
-
-    if (item.id === scheduledItemId) {
-      return;
-    }
-
-    scheduledItemId = item.id;
+  function schedule(item, scheduledCycle) {
     clearTimeout(timer);
-    timer = setTimeout(next, item.durationMs);
+    if (item) {
+      timer = setTimeout(() => {
+        if (cycle === scheduledCycle) next();
+      }, item.durationMs);
+    }
   }
 
   /**
@@ -56,7 +50,6 @@
    */
   function fail(item) {
     failedIds = new Set([...failedIds, item.id]);
-    scheduledItemId = '';
     next();
   }
 
@@ -84,7 +77,7 @@
   $: playableItems = items.filter((item) => !failedIds.has(item.id));
   $: currentIndex = playableItems.length ? Math.min(currentIndex, playableItems.length - 1) : 0;
   $: currentItem = playableItems[currentIndex] ?? null;
-  $: schedule(currentItem);
+  $: schedule(currentItem, cycle);
 
   onMount(() => {
     restartWakeLock();
@@ -105,11 +98,7 @@
   <main class="h-screen w-screen overflow-hidden bg-black text-white" aria-live="off">
     <section class="relative h-full w-full bg-black">
       {#key currentItem.id}
-        <div
-          class="absolute inset-0 grid place-items-center bg-black"
-          in:fade={{ duration: 450 }}
-          out:fade={{ duration: 450 }}
-        >
+        <div class="absolute inset-0 grid place-items-center bg-black" in:fade={{ duration: 180 }}>
           {#if currentItem.type === 'image'}
             <img
               class="block h-screen w-screen object-contain"
@@ -146,7 +135,7 @@
       </div>
 
       <div class="absolute inset-x-0 bottom-0 z-10 h-1 bg-white/10" aria-hidden="true">
-        {#key currentItem.id}
+        {#key `${currentItem.id}:${cycle}`}
           <div
             class="h-full origin-left bg-white/80"
             style={`animation: progress ${currentItem.durationMs}ms linear forwards;`}
