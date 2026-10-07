@@ -3,6 +3,7 @@ tooling/node_modules
 tooling/.playwright-browsers
 .npm-cache
 tooling/.npm-cache
+tooling/.start.lock
 .DS_Store
 dist
 dist-ssr

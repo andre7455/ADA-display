@@ -6,7 +6,7 @@ Svelte + Vite digital signage player.
 
 - `src/` - application source
 - `content/` - images and HTML pages to show in the carousel
-- `build-to.sh` - production build script for a chosen output directory
+- `start.sh` - update, build, and start the kiosk on the display machine
 - `tooling/` - npm dependencies, config, tests, and developer tooling
 
 ## Content
@@ -42,12 +42,12 @@ Install the project dependencies, including development dependencies, before bui
 - `npm run capture -- <url> [output-file]` - manually capture a webpage screenshot into `content/`
 - `npm run test` - run automated tests
 
-## nginx build
+## Starting the display
 
-Build directly to the directory nginx serves:
+On the display machine, point nginx at `/var/www/html`, then call `./start.sh` from any directory. You can pass another nginx output directory: `./start.sh /var/www/ada-display`. `DISPLAY_URL` overrides the kiosk URL (default `http://localhost`), and `KIOSK_BROWSER` selects a browser; otherwise Chromium is preferred, with Firefox as a fallback.
 
-```sh
-./build-to.sh /var/www/ada-display
-```
+`start.sh` attempts a fast-forward update from `origin/main` without resetting or deleting local files. It installs npm dependencies only on the first run or when package files change. It builds if the revision changes, source content changes, the output is missing, or `REBUILD=1` is set; then it starts or refreshes the kiosk. If the network is unavailable or the repository cannot fast-forward, it uses the current local revision. A failed install or build stops the script before the kiosk is restarted. Webpage screenshots refresh when a build occurs; use `REBUILD=1` for an unconditional refresh.
 
-Then point nginx `root` at that output directory.
+For a five-minute cron schedule, use `*/5 * * * * /home/ada/Desktop/ADA-display/start.sh >> /home/ada/ada-display.log 2>&1` in the desktop user's crontab. Each invocation checks for updates and keeps the kiosk running; unchanged runs do not reinstall or rebuild. Overlapping cron runs are skipped using `flock` (included with Raspberry Pi OS). Run cron as the logged-in desktop user so the browser and `wlr-randr` can access its display session. `start.sh` fills in the usual Wayland/X11 session variables when cron does not provide them.
+
+Optional `display.conf` (see the example in the project root) controls the output schedule using `wlr-randr`. Set `DISPLAY_OUTPUT` if your connector is not `HDMI-A-1`. The output directory must be dedicated to this app: Vite clears its contents during a build. For a build without kiosk launch or Git updates, use `npm run build` (output: `dist/`).
