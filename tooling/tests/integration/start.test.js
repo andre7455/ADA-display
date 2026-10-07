@@ -18,7 +18,7 @@ async function fakeCommand(bin, name, script) {
   await chmod(file, 0o755);
 }
 
-it('starts from any directory, builds only when needed, and preserves local files', async () => {
+it('applies the display schedule even when a build is locked, without rebuilding unchanged content', async () => {
   workspace = await mkdtemp(path.join(os.tmpdir(), 'ada-start-'));
   const repo = path.join(workspace, 'repo');
   const bin = path.join(workspace, 'bin');
@@ -50,6 +50,9 @@ it('starts from any directory, builds only when needed, and preserves local file
   await fakeCommand(bin, 'pgrep', 'exit 1');
   await fakeCommand(bin, 'pkill', 'exit 0');
   await fakeCommand(bin, 'chromium', 'echo "kiosk $*" >> "$COMMAND_LOG"');
+  await fakeCommand(bin, 'date', 'if [ "$1" = +%a ]; then echo Wed; else echo 0900; fi');
+  await fakeCommand(bin, 'wlr-randr', 'echo "display $*" >> "$COMMAND_LOG"');
+  await writeFile(path.join(repo, 'display.conf'), 'DAYS=mon,tue\nSTART=08:00\nEND=22:00\n');
 
   const env = {
     ...process.env,
@@ -58,12 +61,21 @@ it('starts from any directory, builds only when needed, and preserves local file
     KIOSK_BROWSER: 'chromium',
   };
   const start = () => spawnSync(path.join(repo, 'start.sh'), [output], { cwd: workspace, env });
-  const locked = spawnSync(path.join(repo, 'start.sh'), [output], {
-    cwd: workspace,
-    env: { ...env, LOCKED: '1' },
-  });
-  expect(locked.status, locked.stderr.toString()).toBe(0);
-  expect(await readFile(log, 'utf8')).not.toMatch(/git|npm/);
+  const locked = () =>
+    spawnSync(path.join(repo, 'start.sh'), [output], {
+      cwd: workspace,
+      env: { ...env, LOCKED: '1' },
+    });
+  const off = locked();
+  expect(off.status, off.stderr.toString()).toBe(0);
+  expect(await readFile(log, 'utf8')).toContain('display --output HDMI-A-1 --off');
+
+  await writeFile(path.join(repo, 'display.conf'), 'DAYS=mon,tue,wed\nSTART=08:00\nEND=22:00\n');
+  const on = locked();
+  expect(on.status, on.stderr.toString()).toBe(0);
+  const lockedCalls = await readFile(log, 'utf8');
+  expect(lockedCalls).toContain('display --output HDMI-A-1 --on');
+  expect(lockedCalls).not.toMatch(/git|npm/);
 
   const first = start();
   expect(first.status, first.stderr.toString()).toBe(0);
@@ -75,12 +87,9 @@ it('starts from any directory, builds only when needed, and preserves local file
   let calls = await readFile(log, 'utf8');
   expect(calls.match(/npm ci/g)).toHaveLength(1);
   expect(calls.match(/npm run build/g)).toHaveLength(1);
-  expect(calls.match(/flock -n 9/g)).toHaveLength(3);
+  expect(calls.match(/flock -n 9/g)).toHaveLength(4);
   expect(calls).not.toMatch(/git (reset|clean)/);
 
-  await fakeCommand(bin, 'date', 'if [ "$1" = +%a ]; then echo Mon; else echo 0900; fi');
-  await fakeCommand(bin, 'wlr-randr', 'echo "display $*" >> "$COMMAND_LOG"');
-  await writeFile(path.join(repo, 'display.conf'), 'DAYS=mon,tue\nSTART=08:00\nEND=22:00\n');
   await utimes(
     path.join(repo, 'content', 'slide.png'),
     new Date('2030-01-01'),

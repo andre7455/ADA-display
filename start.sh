@@ -11,7 +11,46 @@ webroot=$(node -e 'const fs = require("node:fs"); const path = require("node:pat
 url=${DISPLAY_URL:-http://localhost}
 cd "$repo"
 
-# A long build must not overlap the next cron invocation.
+# Cron normally lacks the desktop user's display environment.
+if [[ -z ${XDG_RUNTIME_DIR:-} && -d /run/user/$(id -u) ]]; then
+  export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+fi
+if [[ -z ${WAYLAND_DISPLAY:-} && -n ${XDG_RUNTIME_DIR:-} ]]; then
+  for socket in "$XDG_RUNTIME_DIR"/wayland-*; do
+    if [[ -S "$socket" ]]; then
+      export WAYLAND_DISPLAY=${socket##*/}
+      break
+    fi
+  done
+fi
+if [[ -z ${DISPLAY:-} && -S /tmp/.X11-unix/X0 ]]; then
+  export DISPLAY=:0
+fi
+if [[ -z ${DBUS_SESSION_BUS_ADDRESS:-} && -S ${XDG_RUNTIME_DIR:-/nonexistent}/bus ]]; then
+  export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
+fi
+
+if [[ -f display.conf ]]; then
+  source display.conf
+  day=$(LC_ALL=C date +%a | tr '[:upper:]' '[:lower:]')
+  time=$(date +%H%M)
+  if [[ ",$DAYS," == *",$day,"* ]] &&
+    (( 10#$time >= 10#${START//:/} && 10#$time < 10#${END//:/} )); then
+    state=on
+  else
+    state=off
+  fi
+  echo "Display schedule: $day $time -> $state"
+  if command -v wlr-randr >/dev/null 2>&1; then
+    if ! wlr-randr --output "${DISPLAY_OUTPUT:-HDMI-A-1}" "--$state"; then
+      echo "Could not turn display $state; check the output name and desktop session." >&2
+    fi
+  else
+    echo "wlr-randr not found; skipping display schedule." >&2
+  fi
+fi
+
+# A long build must not block the display schedule on the next cron invocation.
 exec 9>tooling/.start.lock
 if ! flock -n 9; then
   echo "A previous start.sh run is still active; skipping."
@@ -58,25 +97,6 @@ if [[ "$rebuild" == true ]]; then
   npm run build -- --outDir "$webroot" --emptyOutDir
 fi
 
-# Cron normally lacks the desktop user's display environment.
-if [[ -z ${XDG_RUNTIME_DIR:-} && -d /run/user/$(id -u) ]]; then
-  export XDG_RUNTIME_DIR="/run/user/$(id -u)"
-fi
-if [[ -z ${WAYLAND_DISPLAY:-} && -n ${XDG_RUNTIME_DIR:-} ]]; then
-  for socket in "$XDG_RUNTIME_DIR"/wayland-*; do
-    if [[ -S "$socket" ]]; then
-      export WAYLAND_DISPLAY=${socket##*/}
-      break
-    fi
-  done
-fi
-if [[ -z ${DISPLAY:-} && -S /tmp/.X11-unix/X0 ]]; then
-  export DISPLAY=:0
-fi
-if [[ -z ${DBUS_SESSION_BUS_ADDRESS:-} && -S ${XDG_RUNTIME_DIR:-/nonexistent}/bus ]]; then
-  export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
-fi
-
 if [[ -n ${KIOSK_BROWSER:-} ]]; then
   browser=$KIOSK_BROWSER
 elif command -v chromium >/dev/null 2>&1; then
@@ -104,21 +124,4 @@ elif ! pgrep -f "$browser.*--kiosk" >/dev/null; then
 fi
 if [[ "$launch" == true ]]; then
   "$browser" --kiosk "$url" 9>&- >/dev/null 2>&1 &
-fi
-
-if [[ -f display.conf ]]; then
-  source display.conf
-  day=$(LC_ALL=C date +%a | tr '[:upper:]' '[:lower:]')
-  time=$(date +%H%M)
-  if [[ ",$DAYS," == *",$day,"* ]] &&
-    (( 10#$time >= 10#${START//:/} && 10#$time < 10#${END//:/} )); then
-    state=on
-  else
-    state=off
-  fi
-  if command -v wlr-randr >/dev/null 2>&1; then
-    wlr-randr --output "${DISPLAY_OUTPUT:-HDMI-A-1}" "--$state"
-  else
-    echo "wlr-randr not found; skipping display schedule." >&2
-  fi
 fi
