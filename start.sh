@@ -8,7 +8,7 @@ fi
 
 repo=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 webroot=$(node -e 'const fs = require("node:fs"); const path = require("node:path"); const p = path.resolve(process.argv[1]); console.log(fs.existsSync(p) ? fs.realpathSync(p) : p)' "${1:-/var/www/html}")
-url=${DISPLAY_URL:-http://localhost}
+fallback_url=${DISPLAY_URL:-http://localhost}
 cd "$repo"
 
 # Cron normally lacks the desktop user's display environment.
@@ -50,7 +50,55 @@ if [[ -f display.conf ]]; then
   fi
 fi
 
-# A long build must not block the display schedule on the next cron invocation.
+if [[ -n ${KIOSK_BROWSER:-} ]]; then
+  browser=$KIOSK_BROWSER
+elif command -v chromium >/dev/null 2>&1; then
+  browser=chromium
+elif command -v chromium-browser >/dev/null 2>&1; then
+  browser=chromium-browser
+else
+  browser=firefox
+fi
+if ! command -v "$browser" >/dev/null 2>&1; then
+  echo "No kiosk browser found; install Chromium or Firefox, or set KIOSK_BROWSER." >&2
+  exit 1
+fi
+
+# Check the page before selecting it for the kiosk, even during a long build.
+target_url=$fallback_url
+if [[ -n ${PRIMARY_URL:-} ]]; then
+  if [[ $PRIMARY_URL != http://* && $PRIMARY_URL != https://* ]]; then
+    echo "PRIMARY_URL must be an HTTP(S) URL; using the local fallback." >&2
+  elif curl --fail --location --silent --show-error --output /dev/null \
+    --proto '=http,https' --proto-redir '=http,https' \
+    --connect-timeout 3 --max-time 8 "$PRIMARY_URL"; then
+    target_url=$PRIMARY_URL
+  else
+    echo "Primary URL unavailable; using the local fallback." >&2
+  fi
+fi
+
+ensure_kiosk() {
+  local target=$1 force=${2:-false} current=''
+  if [[ -f tooling/.kiosk-target ]]; then
+    current=$(<tooling/.kiosk-target)
+  fi
+  if [[ $force != true && $current == "$target" ]] && pgrep -f "$browser.*--kiosk" >/dev/null; then
+    return
+  fi
+  pkill -f "$browser.*--kiosk" || true
+  for attempt in 1 2 3; do
+    if ! pgrep -f "$browser.*--kiosk" >/dev/null; then break; fi
+    sleep 1
+  done
+  echo "Kiosk: $target"
+  "$browser" --kiosk "$target" 9>&- >/dev/null 2>&1 &
+  printf '%s\n' "$target" > tooling/.kiosk-target
+}
+
+ensure_kiosk "$target_url"
+
+# A long build must not block the display schedule or URL switching.
 exec 9>tooling/.start.lock
 if ! flock -n 9; then
   echo "A previous start.sh run is still active; skipping."
@@ -97,31 +145,7 @@ if [[ "$rebuild" == true ]]; then
   npm run build -- --outDir "$webroot" --emptyOutDir
 fi
 
-if [[ -n ${KIOSK_BROWSER:-} ]]; then
-  browser=$KIOSK_BROWSER
-elif command -v chromium >/dev/null 2>&1; then
-  browser=chromium
-elif command -v chromium-browser >/dev/null 2>&1; then
-  browser=chromium-browser
-else
-  browser=firefox
-fi
-if ! command -v "$browser" >/dev/null 2>&1; then
-  echo "No kiosk browser found; install Chromium or Firefox, or set KIOSK_BROWSER." >&2
-  exit 1
-fi
-
-launch=false
-if [[ "$rebuild" == true ]]; then
-  pkill -f "$browser.*--kiosk" || true
-  for attempt in 1 2 3; do
-    if ! pgrep -f "$browser.*--kiosk" >/dev/null; then break; fi
-    sleep 1
-  done
-  launch=true
-elif ! pgrep -f "$browser.*--kiosk" >/dev/null; then
-  launch=true
-fi
-if [[ "$launch" == true ]]; then
-  "$browser" --kiosk "$url" 9>&- >/dev/null 2>&1 &
+# Reload the fallback only if its local build changed; leave a live page alone.
+if [[ "$rebuild" == true && -f tooling/.kiosk-target && $(<tooling/.kiosk-target) == "$fallback_url" ]]; then
+  ensure_kiosk "$fallback_url" true
 fi

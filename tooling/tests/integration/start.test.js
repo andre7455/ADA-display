@@ -50,6 +50,11 @@ it('applies the display schedule even when a build is locked, without rebuilding
   await fakeCommand(bin, 'pgrep', 'exit 1');
   await fakeCommand(bin, 'pkill', 'exit 0');
   await fakeCommand(bin, 'chromium', 'echo "kiosk $*" >> "$COMMAND_LOG"');
+  await fakeCommand(
+    bin,
+    'curl',
+    'echo "probe $*" >> "$COMMAND_LOG"\nif [ "$PRIMARY_UP" = 1 ]; then exit 0; fi\nexit 22',
+  );
   await fakeCommand(bin, 'date', 'if [ "$1" = +%a ]; then echo Wed; else echo 0900; fi');
   await fakeCommand(bin, 'wlr-randr', 'echo "display $*" >> "$COMMAND_LOG"');
   await writeFile(path.join(repo, 'display.conf'), 'DAYS=mon,tue\nSTART=08:00\nEND=22:00\n');
@@ -77,6 +82,25 @@ it('applies the display schedule even when a build is locked, without rebuilding
   expect(lockedCalls).toContain('display --output HDMI-A-1 --on');
   expect(lockedCalls).not.toMatch(/git|npm/);
 
+  const live = spawnSync(path.join(repo, 'start.sh'), [output], {
+    cwd: workspace,
+    env: { ...env, LOCKED: '1', PRIMARY_URL: 'https://example.test/live', PRIMARY_UP: '1' },
+  });
+  expect(live.status, live.stderr.toString()).toBe(0);
+  expect(await readFile(path.join(repo, 'tooling', '.kiosk-target'), 'utf8')).toBe(
+    'https://example.test/live\n',
+  );
+
+  const unavailable = spawnSync(path.join(repo, 'start.sh'), [output], {
+    cwd: workspace,
+    env: { ...env, LOCKED: '1', PRIMARY_URL: 'https://example.test/live', PRIMARY_UP: '0' },
+  });
+  expect(unavailable.status, unavailable.stderr.toString()).toBe(0);
+  expect(await readFile(path.join(repo, 'tooling', '.kiosk-target'), 'utf8')).toBe(
+    'http://localhost\n',
+  );
+  expect(await readFile(log, 'utf8')).not.toMatch(/git|npm/);
+
   const first = start();
   expect(first.status, first.stderr.toString()).toBe(0);
   expect(await readFile(path.join(output, 'index.html'), 'utf8')).toContain('built');
@@ -87,7 +111,7 @@ it('applies the display schedule even when a build is locked, without rebuilding
   let calls = await readFile(log, 'utf8');
   expect(calls.match(/npm ci/g)).toHaveLength(1);
   expect(calls.match(/npm run build/g)).toHaveLength(1);
-  expect(calls.match(/flock -n 9/g)).toHaveLength(4);
+  expect(calls.match(/flock -n 9/g)).toHaveLength(6);
   expect(calls).not.toMatch(/git (reset|clean)/);
 
   await utimes(

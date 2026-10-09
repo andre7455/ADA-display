@@ -4,6 +4,7 @@ tooling/.playwright-browsers
 .npm-cache
 tooling/.npm-cache
 tooling/.start.lock
+tooling/.kiosk-target
 .DS_Store
 dist
 dist-ssr
